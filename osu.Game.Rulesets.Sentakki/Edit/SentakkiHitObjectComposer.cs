@@ -1,3 +1,4 @@
+using osu.Framework.Bindables;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Edit.Tools;
@@ -19,6 +20,7 @@ namespace osu.Game.Rulesets.Sentakki.Edit
         public SentakkiHitObjectComposer(SentakkiRuleset ruleset)
             : base(ruleset)
         {
+            isRunning.BindValueChanged(_ => writeTime());
         }
 
         protected override IReadOnlyList<HitObjectCompositionTool> CompositionTools => new HitObjectCompositionTool[]
@@ -32,12 +34,30 @@ namespace osu.Game.Rulesets.Sentakki.Edit
         protected override ComposeBlueprintContainer CreateBlueprintContainer(IEnumerable<DrawableHitObject> hitObjects)
             => new SentakkiBlueprintContainer(hitObjects);
 
+        private Bindable<bool> isRunning = new Bindable<bool>(false);
+
+        protected override void Update()
+        {
+            isRunning.Value = EditorClock.IsRunning;
+        }
+
+        private void writeTime()
+        {
+            FileInfo file = new FileInfo(@"C:\Users\pertr\Documents\ma2edit\sentakki\time.txt");
+            file.Directory.Create();
+            file.Delete();
+            using (StreamWriter sw = new StreamWriter(@"C:\Users\pertr\Documents\ma2edit\sentakki\time.txt"))
+            {
+                if (!EditorClock.IsRunning) sw.WriteLine("null");
+                else sw.WriteLine(EditorClock.CurrentTime);
+            }
+        }
+
         protected override bool OnKeyDown(KeyDownEvent e)
         {
-            if (e.Key >= Key.S)
+            if (e.Key == Key.S)
             {
                 FileInfo file = new FileInfo(@"C:\Users\pertr\Documents\ma2edit\sentakki\output.txt");
-                file.Directory.Create();
                 file.Delete();
                 using (StreamWriter sw = new StreamWriter(@"C:\Users\pertr\Documents\ma2edit\sentakki\output.txt"))
                 {
@@ -46,10 +66,10 @@ namespace osu.Game.Rulesets.Sentakki.Edit
                         switch (hitObject)
                         {
                             case Tap tap:
-                                sw.WriteLine("TAP " + tap.Angle.GetNotePathFromDegrees() + " " + tap.StartTime.ToString());
+                                sw.WriteLine("TAP\t" + tap.Angle.GetNotePathFromDegrees() + "\t" + tap.StartTime.ToString());
                                 break;
                             case Hold hold:
-                                sw.WriteLine("HLD " + hold.Angle.GetNotePathFromDegrees() + " " + hold.StartTime.ToString() + " " + hold.Duration.ToString());
+                                sw.WriteLine("HLD\t" + hold.Angle.GetNotePathFromDegrees() + "\t" + hold.StartTime.ToString() + "\t" + hold.Duration.ToString());
                                 break;
                         }
                     }
