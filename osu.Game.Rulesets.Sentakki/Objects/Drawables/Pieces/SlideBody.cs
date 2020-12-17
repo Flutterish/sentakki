@@ -106,7 +106,7 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables.Pieces
             private DrawableSlideNode node;
             private DrawableSlideNode nextNode => nodes.FirstOrDefault( x => x.HitObject.StartTime > node.HitObject.StartTime );
             private DrawableSlideNode previousNode => nodes.LastOrDefault( x => x.HitObject.StartTime < node.HitObject.StartTime );
-            private float duration => (float)(node.HitObject.StartTime - ( previousNode ?? node ).HitStateUpdateTime);
+            private float duration => (float)(node.HitObject.StartTime - ( previousNode ?? node ).HitObject.StartTime);
             private IEnumerable<DrawableSlideNode> nodes;
             public void Apply ( DrawableSlideNode node, IEnumerable<DrawableSlideNode> nodes )
             {
@@ -119,7 +119,10 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables.Pieces
             public int ChevronCount => InternalChildren.Count;
             public void UpdateProgress ()
             {
-                float chevronsPassed = (float)(( previousNode ?? node ).IsHit ? ( ChevronCount * Math.Clamp( ( Clock.CurrentTime - ( previousNode ?? node ).HitStateUpdateTime ) / ( duration ), 0, 1 ) ) : 0);
+                float chevronsPassed;
+                if ( node.IsHit ) chevronsPassed = ChevronCount;
+                else if ( ( previousNode ?? node ).IsHit ) chevronsPassed = (float)( ChevronCount * Math.Clamp(( Clock.CurrentTime - ( previousNode ?? node ).HitStateUpdateTime ) / duration, 0, 1) );
+                else chevronsPassed = 0;
 
                 var alphaLeft = chevronsPassed;
                 foreach ( var chevron in InternalChildren.Reverse() )
