@@ -120,8 +120,8 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables.Pieces
             public void UpdateProgress ()
             {
                 float chevronsPassed;
-                if ( node.IsHit ) chevronsPassed = ChevronCount;
-                else if ( ( previousNode ?? node ).IsHit ) chevronsPassed = (float)( ChevronCount * Math.Clamp(( Clock.CurrentTime - ( previousNode ?? node ).HitStateUpdateTime ) / duration, 0, 1) );
+                if ( (nextNode ?? node).IsHit ) chevronsPassed = ChevronCount;
+                else if ( node.IsHit ) chevronsPassed = (float)( ChevronCount * Math.Clamp(( Clock.CurrentTime - node.HitStateUpdateTime ) / duration, 0, 1) );
                 else chevronsPassed = 0;
 
                 var alphaLeft = chevronsPassed;
