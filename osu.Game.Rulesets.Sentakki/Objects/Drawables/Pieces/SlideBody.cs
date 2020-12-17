@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -97,13 +98,12 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables.Pieces
         }
         private void updateProgress(float progress)
         {
-            double segmentBounds = -chevronInterval;
-
-            for (int i = segments.Count - 1; i >= 0; i--)
+            float chevronsFilled = (float)(progress * 1 / chevronInterval);
+            foreach ( var segment in segments.Reverse() )
             {
-                var segment = segments[i];
-                segmentBounds += segment.ChevronCount * chevronInterval;
-                segment.Alpha = (progress > segmentBounds) ? 0 : 1;
+                var filled = Math.Min( chevronsFilled, segment.ChevronCount );
+                chevronsFilled -= filled;
+                segment.UpdateProgress( filled );
             }
         }
 
@@ -112,6 +112,17 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables.Pieces
             public void ClearChevrons() => ClearInternal(false);
             public void Add(Drawable drawable) => AddInternal(drawable);
             public int ChevronCount => InternalChildren.Count;
+
+            public void UpdateProgress ( float chevronsFilled )
+            {
+                foreach ( var chevron in InternalChildren.Reverse() )
+                {
+                    var filled = Math.Min( chevronsFilled, 1 );
+                    chevronsFilled -= filled;
+
+                    chevron.Alpha = 1 - filled;
+                }
+            }
         }
 
         private class SlideChevron : PoolableDrawable

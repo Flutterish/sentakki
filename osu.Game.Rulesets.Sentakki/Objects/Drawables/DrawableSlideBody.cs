@@ -28,7 +28,6 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables
         public StarPiece SlideStar;
 
         private float starProg;
-        private Vector2? previousPosition;
         public float StarProgress
         {
             get => starProg;
@@ -36,11 +35,7 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables
             {
                 starProg = value;
                 SlideStar.Position = Slidepath.Path.PositionAt(value);
-                if (previousPosition == null)
-                    SlideStar.Rotation = SlideStar.Position.GetDegreesFromPosition(Slidepath.Path.PositionAt(value + .001f));
-                else
-                    SlideStar.Rotation = previousPosition.Value.GetDegreesFromPosition(SlideStar.Position);
-                previousPosition = SlideStar.Position;
+                SlideStar.Rotation = Slidepath.Path.PositionAt(value - .001f).GetDegreesFromPosition(Slidepath.Path.PositionAt(value + .001f));
             }
         }
 
@@ -87,14 +82,20 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables
             OnRevertResult += queueProgressUpdate;
         }
 
+        private double progress;
+        private double maxSlideDistance = 120;
+        private double tickProgress = 0.001;
+        private SentakkiInputManager sentakkiActionInputManager;
+        internal SentakkiInputManager SentakkiActionInputManager => sentakkiActionInputManager ??= GetContainingInputManager() as SentakkiInputManager;
         protected override void OnApply()
         {
             base.OnApply();
             Slidepath.Path = HitObject.SlideInfo.SlidePath.Path;
             updatePathProgress();
-            previousPosition = null;
 
             AccentColour.BindTo(ParentHitObject.AccentColour);
+            progress = 0;
+            pendingProgressUpdate = true;
         }
 
         protected override void OnFree()
@@ -117,17 +118,43 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables
         protected override void Update()
         {
             base.Update();
+
+            if ( Auto )
+            {
+                progress = ( Clock.CurrentTime - HitObject.StartTime - HitObject.ShootDelay ) / (HitObject.Duration - HitObject.ShootDelay );
+                pendingProgressUpdate = true;
+            }
+            else
+            {
+                while ( progress < 1 && ( checkForTouchInput() || checkForMouseInput() ) )
+                {
+                    progress += tickProgress;
+                    pendingProgressUpdate = true;
+                }
+            }
+
             if (pendingProgressUpdate)
                 updatePathProgress();
+        }
+
+        private bool checkForMouseInput ()
+            => ( SentakkiActionInputManager.CurrentState.Mouse.Position - Slidepath.ToScreenSpace( Slidepath.Path.PositionAt(progress) ) ).Length <= maxSlideDistance && SentakkiActionInputManager.PressedActions.Any();
+
+        private bool checkForTouchInput ()
+        {
+            var touchInput = SentakkiActionInputManager.CurrentState.Touch;
+
+            foreach ( var t in touchInput.ActiveSources )
+                if ( ( touchInput.GetTouchPosition(t).Value - Slidepath.ToScreenSpace( Slidepath.Path.PositionAt(progress) ) ).Length <= maxSlideDistance )
+                    return true;
+
+            return false;
         }
 
         // Used to hide and show segments accurately
         private void updatePathProgress()
         {
-            var target = SlideNodes.LastOrDefault(x => x.Result.IsHit);
-            if (target == null)
-                Slidepath.Progress = 0;
-            else Slidepath.Progress = target.HitObject.Progress;
+            Slidepath.Progress = (float)progress;
 
             pendingProgressUpdate = false;
         }
