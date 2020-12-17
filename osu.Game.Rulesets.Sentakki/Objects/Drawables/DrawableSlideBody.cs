@@ -28,7 +28,6 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables
         public StarPiece SlideStar;
 
         private float starProg;
-        private Vector2? previousPosition;
         public float StarProgress
         {
             get => starProg;
@@ -36,11 +35,7 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables
             {
                 starProg = value;
                 SlideStar.Position = Slidepath.Path.PositionAt(value);
-                if (previousPosition == null)
-                    SlideStar.Rotation = SlideStar.Position.GetDegreesFromPosition(Slidepath.Path.PositionAt(value + .001f));
-                else
-                    SlideStar.Rotation = previousPosition.Value.GetDegreesFromPosition(SlideStar.Position);
-                previousPosition = SlideStar.Position;
+                SlideStar.Rotation = SentakkiExtensions.DegreesBetween(Slidepath.Path.PositionAt(value - .001f), Slidepath.Path.PositionAt(value + .001f));
             }
         }
 
@@ -83,16 +78,12 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables
             });
 
             AccentColour.BindValueChanged(c => Colour = c.NewValue);
-            OnNewResult += queueProgressUpdate;
-            OnRevertResult += queueProgressUpdate;
         }
 
         protected override void OnApply()
         {
             base.OnApply();
             Slidepath.Path = HitObject.SlideInfo.SlidePath.Path;
-            updatePathProgress();
-            previousPosition = null;
 
             AccentColour.BindTo(ParentHitObject.AccentColour);
         }
@@ -101,35 +92,6 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables
         {
             base.OnFree();
             AccentColour.UnbindFrom(ParentHitObject.AccentColour);
-        }
-
-        // We want to ensure that the correct progress is visually shown on screen
-        // I don't think that OnRevert of HitObjects is ordered properly
-        // So just to make sure, when multiple OnReverts are called, we just queue for a forced update on the visuals
-        // This makes sure that we always have the right visuals shown.
-        private bool pendingProgressUpdate;
-
-        private void queueProgressUpdate(DrawableHitObject hitObject, JudgementResult result)
-        {
-            pendingProgressUpdate = true;
-        }
-
-        protected override void Update()
-        {
-            base.Update();
-            if (pendingProgressUpdate)
-                updatePathProgress();
-        }
-
-        // Used to hide and show segments accurately
-        private void updatePathProgress()
-        {
-            var target = SlideNodes.LastOrDefault(x => x.Result.IsHit);
-            if (target == null)
-                Slidepath.Progress = 0;
-            else Slidepath.Progress = target.HitObject.Progress;
-
-            pendingProgressUpdate = false;
         }
 
         protected override void UpdateInitialTransforms()

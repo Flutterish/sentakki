@@ -36,10 +36,6 @@ namespace osu.Game.Rulesets.Sentakki.Tests.Objects.Slides
                 EndPath = p;
                 RefreshSlide();
             });
-            AddSliderStep("Progress", 0.0f, 1.0f, 0.0f, p =>
-            {
-                slide.Progress = p;
-            });
 
             Add(nodes = new Container()
             {

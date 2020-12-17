@@ -52,5 +52,8 @@ namespace osu.Game.Rulesets.Sentakki
             if (angle < 0f) angle += 360f;
             return angle + 90;
         }
+
+        public static float DegreesBetween (Vector2 a, Vector2 b)
+            => a.GetDegreesFromPosition( b );
     }
 }

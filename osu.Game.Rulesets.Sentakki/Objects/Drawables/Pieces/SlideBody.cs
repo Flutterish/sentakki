@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Pooling;
@@ -14,17 +17,6 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables.Pieces
     {
         // This will be proxied, so a must.
         public override bool RemoveWhenNotAlive => false;
-
-        private float progress;
-        public float Progress
-        {
-            get => progress;
-            set
-            {
-                progress = value;
-                updateProgress(progress);
-            }
-        }
         private SliderPath path;
 
         public SliderPath Path
@@ -36,7 +28,6 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables.Pieces
                     return;
                 path = value;
                 updateVisuals();
-                updateProgress(progress);
             }
         }
 
@@ -94,24 +85,51 @@ namespace osu.Game.Rulesets.Sentakki.Objects.Drawables.Pieces
             }
 
             segments.Add(currentSegment);
-        }
-        private void updateProgress(float progress)
-        {
-            double segmentBounds = -chevronInterval;
 
-            for (int i = segments.Count - 1; i >= 0; i--)
+            foreach ( var (a,b) in segments.Zip( (Parent as DrawableSlideBody).SlideNodes.Reverse(), (a,b) => (a,b) ) )
             {
-                var segment = segments[i];
-                segmentBounds += segment.ChevronCount * chevronInterval;
-                segment.Alpha = (progress > segmentBounds) ? 0 : 1;
+                a.Apply( b, ( Parent as DrawableSlideBody ).SlideNodes );
+            }
+        }
+
+        protected override void Update ()
+        {
+            base.Update();
+            foreach ( var segment in segments )
+            {
+                segment.UpdateProgress();
             }
         }
 
         private class SlideSegment : PoolableDrawable
         {
+            private DrawableSlideNode node;
+            private DrawableSlideNode nextNode => nodes.FirstOrDefault( x => x.HitObject.StartTime > node.HitObject.StartTime );
+            private DrawableSlideNode previousNode => nodes.LastOrDefault( x => x.HitObject.StartTime < node.HitObject.StartTime );
+            private float duration => (float)(node.HitObject.StartTime - ( previousNode ?? node ).HitStateUpdateTime);
+            private IEnumerable<DrawableSlideNode> nodes;
+            public void Apply ( DrawableSlideNode node, IEnumerable<DrawableSlideNode> nodes )
+            {
+                this.node = node;
+                this.nodes = nodes;
+            }
+
             public void ClearChevrons() => ClearInternal(false);
             public void Add(Drawable drawable) => AddInternal(drawable);
             public int ChevronCount => InternalChildren.Count;
+            public void UpdateProgress ()
+            {
+                float chevronsPassed = (float)(( previousNode ?? node ).IsHit ? ( ChevronCount * Math.Clamp( ( Clock.CurrentTime - ( previousNode ?? node ).HitStateUpdateTime ) / ( duration ), 0, 1 ) ) : 0);
+
+                var alphaLeft = chevronsPassed;
+                foreach ( var chevron in InternalChildren.Reverse() )
+                {
+                    var given = Math.Min( alphaLeft, 1 );
+                    alphaLeft -= given;
+
+                    chevron.Alpha = 1 - given;
+                }
+            }
         }
 
         private class SlideChevron : PoolableDrawable
